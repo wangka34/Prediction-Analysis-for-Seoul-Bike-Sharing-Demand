@@ -1,0 +1,257 @@
+---
+title: "SeoulBikeData program"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+```{r}
+SeoulBikeData = read.csv('C:/Users/kevin/Desktop/SeoulBikeData.csv',header = TRUE)
+head(SeoulBikeData)
+#read the file and display the file
+```
+
+```{r}
+sum(is.na(SeoulBikeData))
+#check missing value
+```
+
+```{r}
+library(tidyverse)
+SeoulBikeData <- SeoulBikeData %>% rename(
+    rental_count = Rented.Bike.Count,
+    Temperature = Temperature.degree.,
+    Humidity = Humidity...,
+    Wind_speed = Wind.speed..m.s.,
+    Visibility_in_10m = Visibility..10m.,
+    Dew_point_temperature = Dew.point.temperature.degree.,
+    Solar_Radiation = Solar.Radiation..MJ.m2.,
+    Rainfall_in_mm = Rainfall.mm.,
+    Snowfall_in_cm = Snowfall..cm.,
+    Functioning_Day = Functioning.Day
+    )
+head(SeoulBikeData)
+str(SeoulBikeData)
+#renaming the columns
+```
+
+```{r}
+ggplot(SeoulBikeData, aes(x=rental_count)) + geom_histogram(color="blue", fill="white")
+#shape of the dependent value
+```
+
+
+```{r}
+nrow(subset(SeoulBikeData, rental_count==0))
+SeoulBikeData %>% count(Functioning_Day)
+SeoulBikeData$Functioning_Day[SeoulBikeData$Functioning_Day == 'No'] <- 0
+SeoulBikeData$Functioning_Day[SeoulBikeData$Functioning_Day == 'Yes'] <- 1
+SeoulBikeData$Functioning_Day <- as.numeric(SeoulBikeData$Functioning_Day)
+ggplot(SeoulBikeData, aes(x=rental_count, y=Functioning_Day)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE)
+SeoulBikeData_nonFunction <- filter(SeoulBikeData, Functioning_Day == 0)
+SeoulBikeData_nonFunction %>% count(rental_count)
+SeoulBikeData_nonFunction %>% count(Functioning_Day)
+#drop the function day attribute.
+```
+
+```{r}
+SeoulBikeData_Function <- filter(SeoulBikeData, Functioning_Day == 1)
+str(SeoulBikeData_Function)
+ggplot(SeoulBikeData_Function, aes(x=rental_count)) + geom_histogram(aes(y=..density..),color="blue", fill="white") + geom_density()
+#after the function day attribute, check the shape again
+```
+
+```{r}
+ggplot(SeoulBikeData_Function, aes(y=rental_count)) + 
+  geom_boxplot()
+```
+
+
+```{r}
+summary(SeoulBikeData_Function$rental_count)
+```
+
+```{r}
+summary(SeoulBikeData_Function$Temperature)
+```
+```{r}
+summary(SeoulBikeData_Function$Humidity)
+```
+```{r}
+summary(SeoulBikeData_Function$Wind_speed)
+```
+```{r}
+summary(SeoulBikeData_Function$Visibility_in_10m)
+```
+```{r}
+summary(SeoulBikeData_Function$Dew_point_temperature)
+```
+```{r}
+summary(SeoulBikeData_Function$Solar_Radiation)
+```
+```{r}
+summary(SeoulBikeData_Function$Rainfall_in_mm)
+```
+```{r}
+summary(SeoulBikeData_Function$Snowfall_in_cm)
+```
+
+```{r}
+ggplot(SeoulBikeData_Function, aes(x=Seasons , y=rental_count, fill=Seasons)) + 
+  geom_boxplot()
+#boxplot between counts and seasons along four seasons
+```
+```{r}
+ggplot(SeoulBikeData_Function, aes(x=Holiday , y=rental_count, fill=Holiday)) + 
+  geom_boxplot()
+#boxplot between counts and holiday
+```
+
+```{r}
+count_vs_hour <- SeoulBikeData_Function[2:3]
+count_vs_hour$Hour <- as.character(count_vs_hour$Hour)
+str(count_vs_hour)
+count_vs_hour$Hour <- factor(count_vs_hour$Hour,levels = c("0","1", "2", "3", "4","5", "6", "7", "8","9", "10", "11", "12","13","14", "15", "16", "17","18", "19", "20", "21","22", "23"))
+ggplot(count_vs_hour,aes(x=Hour , y=rental_count,fill = Hour)) + geom_boxplot()
+#boxplot between counts and hours along the different intervals
+```
+
+
+```{r}
+SeoulBikeData_Function$Seasons[SeoulBikeData_Function$Seasons == 'Winter'] <- 1
+SeoulBikeData_Function$Seasons[SeoulBikeData_Function$Seasons == 'Spring'] <- 2
+SeoulBikeData_Function$Seasons[SeoulBikeData_Function$Seasons == 'Summer'] <- 3
+SeoulBikeData_Function$Seasons[SeoulBikeData_Function$Seasons == 'Autumn'] <- 4
+SeoulBikeData_Function$Seasons <- as.numeric(SeoulBikeData_Function$Seasons)
+SeoulBikeData_Function %>% count(Seasons)
+#change seasons into from 1 to 4 for the linear regression
+```
+
+```{r}
+SeoulBikeData_Function %>% count(Holiday)
+SeoulBikeData_Function$Holiday[SeoulBikeData_Function$Holiday == 'Holiday'] <- 1
+SeoulBikeData_Function$Holiday[SeoulBikeData_Function$Holiday == 'No Holiday'] <- 2
+SeoulBikeData_Function$Holiday <- as.numeric(SeoulBikeData_Function$Holiday)
+SeoulBikeData_Function %>% count(Holiday)
+#change Holiday into 1 and 2 for the linear regression
+```
+
+
+```{r}
+library(reshape2)
+correlation_test <- SeoulBikeData_Function[2:11]
+melted<- melt(round(cor(correlation_test),2))
+library(ggplot2)
+ggplot(data = melted, aes(x=Var1, y=Var2, fill=value)) + geom_tile() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 12, hjust = 1),axis.text.y = element_text(size = 12))+ 
+  coord_fixed()+scale_fill_continuous(low = "violetred", high = "aquamarine")+ 
+  geom_tile(color = "white",lwd = 0.5,linetype = 1)+
+  labs(x = "",y = "") +
+  geom_text(aes(label = value), color = "black", size = 2)
+#heatmap and correlation test
+```
+
+
+```{r}
+ggplot(correlation_test, aes(x=Temperature, y=Dew_point_temperature)) + 
+  geom_point()+
+  geom_smooth(method=lm, se=FALSE)
+test_model_1 <- lm(Temperature~Dew_point_temperature,data = correlation_test)
+summary(test_model_1)
+#check the correlation between dew point temperature and temperature.
+```
+
+```{r}
+SeoulBikeData_Function_mlr <- SeoulBikeData_Function[c(2:7,9:13)]
+head(SeoulBikeData_Function_mlr)
+```
+
+
+```{r}
+library(MASS)
+library(leaps)
+library(caret)
+train_control <- trainControl(method = "cv", number = 10,p = 0.75)
+#split dataset to 75% training data and 25% testing data.
+#method = "cv" and number = 10 are 10-fold cross-validation.
+```
+
+
+```{r}
+set.seed(903)
+model_mlr <- train(rental_count~., data=SeoulBikeData_Function_mlr,method = "lm", trControl = train_control,metric = "RMSE")
+model_mlr
+summary(model_mlr)
+#multple linear regression model
+```
+
+
+```{r}
+set.seed(903)
+step_model <- train(rental_count~., data = SeoulBikeData_Function_mlr,
+                    method = "lmStepAIC", 
+                    trControl = train_control,
+                    trace = FALSE)
+step_model
+summary(step_model)
+#stepwise regression model.
+```
+```{r}
+subsets<-regsubsets(rental_count~.,
+data=SeoulBikeData_Function_mlr, nbest=1)
+sub.sum <- summary(subsets)
+as.data.frame(sub.sum$outmat)
+#looking for the best attributes using regsubsets.
+```
+
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+
+
+
+```{r}
+set.seed(903)
+dt_model <- train(rental_count ~ .,
+   tuneLength = 10,metric = "RMSE", data = SeoulBikeData_Function_mlr, method = "rpart",trControl =train_control)
+print(dt_model)
+#decision tree regression model.
+```
+
+```{r}
+plot(dt_model)
+#plot for complexity parameter
+```
+```{r}
+dt_model$finalModel
+rpart.plot(dt_model$finalModel)
+#the shape of the best tree.
+```
+
+
+
+```{r}
+set.seed(903)
+model_knn <- train(
+   rental_count~., data = SeoulBikeData_Function_mlr, method = "knn",
+  trControl = train_control,
+  preProcess = c("center","scale"),
+  tuneLength = 10)
+#KNN regression model.
+plot(model_knn)
+#plot for number of neighbors
+model_knn
+model_knn$bestTune
+# the best number for neighbors.
+```
+
+
+
